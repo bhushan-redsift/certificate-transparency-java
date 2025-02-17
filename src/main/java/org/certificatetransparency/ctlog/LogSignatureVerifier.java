@@ -24,6 +24,7 @@ import java.util.List;
 
 import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.DERBitString;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.asn1.x509.Extensions;
@@ -248,8 +249,14 @@ public class LogSignatureVerifier {
       tbsCertificateGenerator.setEndDate(tbsPart.getEndDate());
       tbsCertificateGenerator.setSubject(tbsPart.getSubject());
       tbsCertificateGenerator.setSubjectPublicKeyInfo(tbsPart.getSubjectPublicKeyInfo());
-      tbsCertificateGenerator.setIssuerUniqueID(tbsPart.getIssuerUniqueId());
-      tbsCertificateGenerator.setSubjectUniqueID(tbsPart.getSubjectUniqueId());
+      if (tbsPart.getIssuerUniqueId() != null) {
+        tbsCertificateGenerator.setIssuerUniqueID(
+            DERBitString.convert(tbsPart.getIssuerUniqueId()));
+      }
+      if (tbsPart.getSubjectUniqueId() != null) {
+        tbsCertificateGenerator.setSubjectUniqueID(
+            DERBitString.convert(tbsPart.getSubjectUniqueId()));
+      }
       tbsCertificateGenerator.setExtensions(
           new Extensions(orderedExtensions.toArray(new Extension[] {})));
       return tbsCertificateGenerator.generateTBSCertificate();
