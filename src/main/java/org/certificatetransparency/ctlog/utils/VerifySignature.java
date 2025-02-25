@@ -1,8 +1,6 @@
 package org.certificatetransparency.ctlog.utils;
 
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
@@ -13,7 +11,6 @@ import java.util.Map;
 import org.bouncycastle.asn1.ASN1OctetString;
 import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.DEROctetString;
-import org.bouncycastle.crypto.tls.TlsUtils;
 import org.bouncycastle.util.encoders.Base64;
 import org.certificatetransparency.ctlog.CertificateInfo;
 import org.certificatetransparency.ctlog.LogInfo;
@@ -156,16 +153,43 @@ public class VerifySignature {
 
   private static Ct.SignedCertificateTimestamp[] parseSCTsFromCertExtension(byte[] extensionvalue)
       throws IOException {
-    List<Ct.SignedCertificateTimestamp> sctList = new ArrayList<Ct.SignedCertificateTimestamp>();
+    List<Ct.SignedCertificateTimestamp> sctList = new ArrayList<>();
     ByteArrayInputStream bis = new ByteArrayInputStream(extensionvalue);
-    final int i =
-        TlsUtils.readUint16(
-            bis); // first one is the length of all SCTs concatenated, we don't actually need this
+
+    // The first two bytes represent the total length (which we ignore)
+    int totalLength = readUint16(bis);
+
+    // Continue reading while there are at least 2 bytes (for the next opaque16 length)
     while (bis.available() > 2) {
-      byte[] sctBytes = TlsUtils.readOpaque16(bis);
-      // System.out.println("Read SCT bytes (excluding length): " + sctBytes.length);
+      byte[] sctBytes = readOpaque16(bis);
       sctList.add(Deserializer.parseSCTFromBinary(new ByteArrayInputStream(sctBytes)));
     }
-    return sctList.toArray(new Ct.SignedCertificateTimestamp[sctList.size()]);
+    return sctList.toArray(new Ct.SignedCertificateTimestamp[0]);
+  }
+
+  // Helper method to read uint16
+  private static int readUint16(InputStream in) throws IOException {
+    int high = in.read();
+    int low = in.read();
+
+    if (high < 0 || low < 0) {
+      throw new IOException("EOF while reading uint16");
+    }
+
+    return (high << 8) | low;
+  }
+
+  private static byte[] readOpaque16(InputStream is) throws IOException {
+    int length = readUint16(is);
+    byte[] data = new byte[length];
+    int totalRead = 0;
+    while (totalRead < length) {
+      int bytesRead = is.read(data, totalRead, length - totalRead);
+      if (bytesRead < 0) {
+        throw new EOFException("Unexpected end of stream while reading opaque16");
+      }
+      totalRead += bytesRead;
+    }
+    return data;
   }
 }
